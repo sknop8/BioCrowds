@@ -1,12 +1,11 @@
 const THREE = require('three'); // older modules are imported like this. You shouldn't have to worry about this much
 import Framework from './framework'
-import BioCrowd from './biocrowd'
+import { BioCrowd, Agent } from './biocrowd'
 
-let verts = [];
-let particles = [];
 let scene;
-let clock;
-let particleSystem;
+let crowd;
+const agentGeo = new THREE.BoxGeometry( 0.3, 1, 0.3 );
+const agentMat = new THREE.MeshBasicMaterial( { color: 0x2222dd } );
 
 // called after the scene loads
 function onLoad(framework) {
@@ -30,7 +29,8 @@ function onLoad(framework) {
 
     const objLoader = new THREE.OBJLoader();
     const markerGeo = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-    const material = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+    const markerMat = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+
 
 
     // set camera position
@@ -46,27 +46,51 @@ function onLoad(framework) {
     });
 
 
-    clock = new THREE.Clock();
-    clock.start();
+    // Initialize bio crowd
+    crowd = new BioCrowd(20, 4000);
 
-    let markers = BioCrowd.ScatterMarkers(1000);
-
-    for (let m in markers){
-      let pos = markers[m];
-      let markerMesh = new THREE.Mesh(markerGeo, material);
+    for (let m in crowd.markers){
+      let pos = crowd.markers[m];
+      let markerMesh = new THREE.Mesh(markerGeo, markerMat);
       markerMesh.position.set(pos.x, pos.y, pos.z);
       scene.add(markerMesh);
     }
 
+    let startPositions = [];
+    let endPositions = [];
+    const NUM_AGENTS = 30;
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let x0 = (i / NUM_AGENTS) * crowd.grid_size;//Math.random() * crowd.grid_size;
+      let z0 = 0 //Math.random() * crowd.grid_size;
+      let x1 = x0// Math.random() * crowd.grid_size;
+      let z1 = crowd.grid_size//Math.random() * crowd.grid_size;
+      startPositions.push(new THREE.Vector3(x0, 0, z0));
+      endPositions.push(new THREE.Vector3(x1, 0, z1));
+    }
+    crowd.SetupAgents(startPositions, endPositions);
 }
 
 function lerp(a, b, t) {
     return (1 - t) * a + t * b;
-}
+}k
 
 // called on frame updates
 function onUpdate(framework) {
+  if (crowd) {
+    crowd.MoveAgents();
+    const agents = crowd.agents;
 
+    for (let i = 0; i < agents.length; i++) {
+      let pos = agents[i].pos;
+      let agentMesh = new THREE.Mesh(agentGeo, agentMat);
+      agentMesh.position.set(pos.x, pos.y, pos.z);
+      let name = "agent" + i
+      agentMesh.name = name;
+      scene.remove(scene.getObjectByName(name,true));
+
+      scene.add(agentMesh);
+    }
+  }
 }
 
 // when the scene is done initializing, it will call onLoad, then on frame updates, call onUpdate
