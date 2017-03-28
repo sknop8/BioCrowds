@@ -56,8 +56,24 @@ export class BioCrowd {
 
   // Move agents 1 step if they haven't yet reached their goal
   MoveAgents() {
-
     let containerCopy = copyContainer(this.container);
+
+    for (let k = 0; k < this.agents.length; k++) {
+      let a = this.agents[k]
+      let x = a.pos.x;
+      let z = a.pos.z;
+      for (let i = -a.size / 3; i <= a.size / 3; i++) {
+        for (let j = -a.size / 3; j <= a.size / 3; j++) {
+          let cx = Math.floor(x + i);
+          let cz = Math.floor(z + j);
+          if (cx >= 0 && cz >= 0 &&
+              cx < containerCopy.length &&
+              cz < containerCopy.length ) {
+            containerCopy[cx][cz] = [];
+          }
+        }
+      }
+    }
 
     for (let i = 0; i < this.agents.length; i++) {
       let agent = this.agents[i];
@@ -77,28 +93,28 @@ export class BioCrowd {
 export class Agent {
   constructor(start, goal) {
     this.pos = start;
-    // this.velocity = 0;
     this.goal = goal;
     // this.orientation = 1;
-    this.size = 2.0; // Radius of bubble (integer pls)
+    this.size = 1.5; // Radius of bubble (integer)
     this.markers = [];
     this.weights = [];
-    this.max_speed = 0.06;
+    this.max_speed = 0.05;
     this.done = false;
   }
 
   retrieveMarkers(container) {
-
-    const x = Math.floor(this.pos.x);
-    const z = Math.floor(this.pos.z);
+    const x = this.pos.x;
+    const z = this.pos.z;
     this.markers = [];
     for (let i = -this.size; i <= this.size; i++) {
       for (let j = -this.size; j <= this.size; j++) {
-        if (x + i >= 0 && z + j >= 0 &&
-            x + i < container.length &&
-            z + j < container.length ) {
-          this.markers = this.markers.concat(container[x + i][z + j]);
-          container[x + i][z + j] = [];
+        let cx = Math.floor(x + i);
+        let cz = Math.floor(z + j);
+        if (cx >= 0 && cz >= 0 &&
+            cx < container.length &&
+            cz < container.length ) {
+          this.markers = this.markers.concat(container[cx][cz]);
+          container[cx][cz] = [];
         }
       }
     }
@@ -112,7 +128,7 @@ export class Agent {
       let v2 = this.markers[i].clone();
       v1.sub(this.pos);
       v2.sub(this.pos);
-      let weight = v1.dot(v2) + 1;
+      let weight = v1.dot(v2);
       this.weights.push(weight);
       total += weight;
     }

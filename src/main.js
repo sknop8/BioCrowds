@@ -5,8 +5,10 @@ import { BioCrowd, Agent } from './biocrowd'
 let scene;
 let crowd;
 let clock;
-const agentGeo = new THREE.BoxGeometry( 1, 1, 1 );
-const agentMat = new THREE.MeshBasicMaterial( { color: 0x2222dd } );
+const GRID_SIZE = 30;
+const NUM_MARKERS = 2000;
+const agentGeo = new THREE.BoxGeometry( 0.4, 1, 0.4 );
+const agentMat = new THREE.MeshBasicMaterial( { color: 0x5599ff } );
 
 // called after the scene loads
 function onLoad(framework) {
@@ -32,11 +34,9 @@ function onLoad(framework) {
     const markerGeo = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
     const markerMat = new THREE.MeshBasicMaterial( { color: 0x000000 } );
 
-
-
     // set camera position
-    camera.position.set(15, 50, -15);
-    camera.lookAt(new THREE.Vector3(0,-10,0));
+    camera.position.set(-5, 25, 30);
+    camera.lookAt(new THREE.Vector3(GRID_SIZE / 2, -5, GRID_SIZE / 2));
 
     scene.add(directionalLight);
 
@@ -48,23 +48,31 @@ function onLoad(framework) {
 
 
     // Initialize bio crowd
-    crowd = new BioCrowd(50, 3000);
+    crowd = new BioCrowd(GRID_SIZE, NUM_MARKERS);
 
     for (let m in crowd.markers){
       let pos = crowd.markers[m];
       let markerMesh = new THREE.Mesh(markerGeo, markerMat);
       markerMesh.position.set(pos.x, pos.y, pos.z);
-      scene.add(markerMesh);
+      // scene.add(markerMesh);
     }
 
     let startPositions = [];
     let endPositions = [];
     const NUM_AGENTS = 30;
     for (let i = 0; i < NUM_AGENTS; i++) {
-      let x0 = (i / NUM_AGENTS) * crowd.grid_size;
+      let x0 = (i / NUM_AGENTS) * (crowd.grid_size - 5);
       let z0 = 0;
-      let x1 = (1 - i / NUM_AGENTS) * crowd.grid_size;
-      let z1 = crowd.grid_size;
+      let x1 = x0;
+      let z1 = crowd.grid_size - 5;
+      startPositions.push(new THREE.Vector3(x0, 0, z0));
+      endPositions.push(new THREE.Vector3(x1, 0, z1));
+    }
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let x1 = (i / NUM_AGENTS) * (crowd.grid_size - 5);
+      let z1 = 0;
+      let x0 = x1;
+      let z0 = crowd.grid_size - 5;
       startPositions.push(new THREE.Vector3(x0, 0, z0));
       endPositions.push(new THREE.Vector3(x1, 0, z1));
     }
@@ -96,6 +104,7 @@ function onUpdate(framework) {
         if (agentMesh) {
           agentMesh.position.set(pos.x,pos.y,pos.z)
         } else {
+          const agentMat = new THREE.MeshBasicMaterial( { color: new THREE.Color(Math.random(), Math.random(), Math.random())} );
           let agentMesh = new THREE.Mesh(agentGeo, agentMat);
           agentMesh.position.set(pos.x, pos.y, pos.z);
           agentMesh.name = name;
