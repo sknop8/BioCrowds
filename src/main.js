@@ -10,7 +10,8 @@ const NUM_MARKERS = 2500;
 let DEBUG = false;
 let controls = {
   debug: false,
-  config: 1
+  config: 1,
+  pause: false
 }
 const agentGeo = new THREE.CylinderGeometry( 0.3, 0.3, 1 );
 const agentMat = new THREE.MeshBasicMaterial( { color: 0x5599ff } );
@@ -72,6 +73,8 @@ function onLoad(framework) {
     gui.add(controls, 'debug').onChange(() => {
       controls.debug ? ShowMarkers() : HideMarkers();
     });
+
+    gui.add(controls, 'pause');
 
 
     clock = new THREE.Clock();
@@ -173,10 +176,7 @@ function SetupCrowd() {
 
 // called on frame updates
 function onUpdate(framework) {
-  let go = true;
-  // if (clock) go = (Math.floor(clock.getElapsedTime() * 100) % 2 == 0);
-
-  if (crowd && go) {
+  if (crowd && !controls.pause) {
     crowd.MoveAgents();
     const agents = crowd.agents;
 
