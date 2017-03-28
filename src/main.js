@@ -187,11 +187,11 @@ function onUpdate(framework) {
         let agentMesh = scene.getObjectByName(name,true);
 
         if (agentMesh) {
-          agentMesh.position.set(pos.x,pos.y,pos.z)
+          agentMesh.position.set(pos.x,0,pos.z)
         } else {
           const agentMat = new THREE.MeshBasicMaterial( { color: new THREE.Color(Math.random(), Math.random(), Math.random())} );
           let agentMesh = new THREE.Mesh(agentGeo, agentMat);
-          agentMesh.position.set(pos.x, pos.y, pos.z);
+          agentMesh.position.set(pos.x, 0, pos.z);
           agentMesh.name = name;
           scene.add(agentMesh);
         }
