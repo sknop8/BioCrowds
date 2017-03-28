@@ -88,7 +88,8 @@ export class Agent {
     this.pos = start;
     this.goal = goal;
     // this.orientation = 1;
-    this.size = 1; // Radius of bubble (integer)
+    this.size = 2; // Pixel radius (which containers to look in)
+    // this.radius = 1; // exact radius
     this.markers = [];
     this.weights = [];
     this.max_speed = 0.05;
@@ -99,6 +100,7 @@ export class Agent {
     const x = this.pos.x;
     const z = this.pos.z;
     this.markers = [];
+    let step = this.size / 4
     for (let i = -this.size; i <= this.size; i++) {
       for (let j = -this.size; j <= this.size; j++) {
         let cx = Math.floor(x + i);
@@ -106,8 +108,19 @@ export class Agent {
         if (cx >= 0 && cz >= 0 &&
             cx < container.length &&
             cz < container.length ) {
-          this.markers = this.markers.concat(container[cx][cz]);
-          container[cx][cz] = [];
+          let markers = container[cx][cz];
+          container[cx][cz] = []
+          markers.forEach((m) => {
+            if (m.distanceTo(this.pos) < this.size) {
+              // console.log(m.distanceTo(this.pos))
+              this.markers.push(m);
+            } else {
+              container[cx][cz].push(m);
+            }
+          });
+          // console.log(this.markers.length)
+          // this.markers.concat(container[cx][cz]);
+          // container[cx][cz] = leftover;
         }
       }
     }
@@ -148,7 +161,7 @@ export class Agent {
     this.pos.add(disp);
 
     // Checks if I have reached my goal
-    if (this.pos.distanceTo(this.goal) < 0.5) {
+    if (this.pos.distanceTo(this.goal) < 0.2) {
       this.done = true;
     }
   }

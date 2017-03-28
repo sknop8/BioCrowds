@@ -6,7 +6,7 @@ let scene;
 let crowd;
 let clock;
 const GRID_SIZE = 30;
-const NUM_MARKERS = 2500;
+const NUM_MARKERS = 3000;
 let DEBUG = false;
 let controls = {
   debug: false,
@@ -84,14 +84,35 @@ function onLoad(framework) {
 function ShowMarkers() {
   if (!crowd) return;
   const markerGeo = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-  const markerMat = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+  const markerMat1 = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+  const markerMat2 = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
 
   for (let m in crowd.markers){
     let pos = crowd.markers[m];
-    let markerMesh = new THREE.Mesh(markerGeo, markerMat);
-    markerMesh.position.set(pos.x, pos.y, pos.z);
+    let markerMesh;
+
+    if ((Math.floor(pos.x) + Math.floor(pos.z)) % 2 == 0 ) {
+      markerMesh = new THREE.Mesh(markerGeo, markerMat2);
+    } else {
+      markerMesh = new THREE.Mesh(markerGeo, markerMat1);
+    }
+    markerMesh.position.set(pos.x, -0.4, pos.z);
     markerMesh.name = "marker" + m;
     scene.add(markerMesh);
+  }
+
+  const tileGeo = new THREE.PlaneBufferGeometry(1,1);
+  const tileMat = new THREE.MeshBasicMaterial( { color: 0xdddddd, side: THREE.DoubleSide } );
+
+  for (let i = 0; i < GRID_SIZE; i++) {
+    for (let j = 0; j < GRID_SIZE; j++) {
+      if((i + j) % 2 == 0) {
+        const tileMesh = new THREE.Mesh(tileGeo, tileMat);
+        tileMesh.rotation.x = Math.PI / 2
+        tileMesh.position.set(i + 0.5, -0.45, j + 0.5)
+        scene.add(tileMesh);
+      }
+    }
   }
 }
 
