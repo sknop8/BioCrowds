@@ -35,8 +35,7 @@ function onLoad(framework) {
     renderer.setClearColor(0xeeeeee, 1);
 
     const objLoader = new THREE.OBJLoader();
-    const markerGeo = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-    const markerMat = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+
 
     // set camera position
     camera.position.set(-5, 25, 30);
@@ -62,23 +61,51 @@ function onLoad(framework) {
     // Initialize bio crowd
     SetupCrowd();
 
-    if (DEBUG) {
-      for (let m in crowd.markers){
-        let pos = crowd.markers[m];
-        let markerMesh = new THREE.Mesh(markerGeo, markerMat);
-        markerMesh.position.set(pos.x, pos.y, pos.z);
-        scene.add(markerMesh);
-      }
+    if (controls.debug) {
+      ShowMarkers();
     }
 
-    gui.add(controls, 'config', {CONF1: 1, CONF2: 2}).onChange((val) => {
+    gui.add(controls, 'config', {CONF1: 1, CONF2: 2}).onChange(() => {
       SetupCrowd();
+    });
+
+    gui.add(controls, 'debug').onChange(() => {
+      controls.debug ? ShowMarkers() : HideMarkers();
     });
 
 
     clock = new THREE.Clock();
     clock.start();
 }
+
+function ShowMarkers() {
+  if (!crowd) return;
+  const markerGeo = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
+  const markerMat = new THREE.MeshBasicMaterial( { color: 0x000000 } );
+
+  for (let m in crowd.markers){
+    let pos = crowd.markers[m];
+    let markerMesh = new THREE.Mesh(markerGeo, markerMat);
+    markerMesh.position.set(pos.x, pos.y, pos.z);
+    markerMesh.name = "marker" + m;
+    scene.add(markerMesh);
+  }
+}
+
+function HideMarkers() {
+  if (!crowd) return;
+  for (let m in crowd.markers){
+    scene.remove(scene.getObjectByName("marker" + m, true));
+  }
+}
+
+function ClearScene() {
+  if (!crowd) return;
+  for (let i = 0; i < crowd.agents.length; i++) {
+    scene.remove(scene.getObjectByName("agent" + i, true));
+  }
+}
+
 
 function SetupCrowd() {
   ClearScene();
@@ -143,12 +170,6 @@ function SetupCrowd() {
   crowd.SetupAgents(startPositions, endPositions);
 }
 
-function ClearScene() {
-  if (!crowd) return;
-  for (let i = 0; i < crowd.agents.length; i++) {
-    scene.remove(scene.getObjectByName("agent" + i,true));
-  }
-}
 
 // called on frame updates
 function onUpdate(framework) {
