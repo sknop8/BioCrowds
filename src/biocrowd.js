@@ -62,17 +62,10 @@ export class BioCrowd {
       let a = this.agents[k]
       let x = a.pos.x;
       let z = a.pos.z;
-      for (let i = -a.size / 3; i <= a.size / 3; i++) {
-        for (let j = -a.size / 3; j <= a.size / 3; j++) {
-          let cx = Math.floor(x + i);
-          let cz = Math.floor(z + j);
-          if (cx >= 0 && cz >= 0 &&
-              cx < containerCopy.length &&
-              cz < containerCopy.length ) {
-            containerCopy[cx][cz] = [];
-          }
-        }
-      }
+      let cx = Math.floor(x);
+      let cz = Math.floor(z);
+      let len = containerCopy.length;
+      containerCopy[cx][cz] = [];
     }
 
     for (let i = 0; i < this.agents.length; i++) {
@@ -95,7 +88,7 @@ export class Agent {
     this.pos = start;
     this.goal = goal;
     // this.orientation = 1;
-    this.size = 1.5; // Radius of bubble (integer)
+    this.size = 1; // Radius of bubble (integer)
     this.markers = [];
     this.weights = [];
     this.max_speed = 0.05;
@@ -155,14 +148,8 @@ export class Agent {
     this.pos.add(disp);
 
     // Checks if I have reached my goal
-    if (this.pos.distanceTo(this.goal) < 2) {
+    if (this.pos.distanceTo(this.goal) < 0.5) {
       this.done = true;
     }
   }
 }
-
-//
-// export default {
-//   BioCrowd: BioCrowd,
-//   Agent: Agent
-// }

@@ -6,7 +6,12 @@ let scene;
 let crowd;
 let clock;
 const GRID_SIZE = 30;
-const NUM_MARKERS = 2000;
+const NUM_MARKERS = 2500;
+let DEBUG = false;
+let controls = {
+  debug: false,
+  config: 1
+}
 const agentGeo = new THREE.CylinderGeometry( 0.3, 0.3, 1 );
 const agentMat = new THREE.MeshBasicMaterial( { color: 0x5599ff } );
 
@@ -54,44 +59,95 @@ function onLoad(framework) {
     planeMesh.position.setY(-0.5)
     scene.add(planeMesh);
 
-
     // Initialize bio crowd
-    crowd = new BioCrowd(GRID_SIZE, NUM_MARKERS);
+    SetupCrowd();
 
-    // for (let m in crowd.markers){
-    //   let pos = crowd.markers[m];
-    //   let markerMesh = new THREE.Mesh(markerGeo, markerMat);
-    //   markerMesh.position.set(pos.x, pos.y, pos.z);
-    //   scene.add(markerMesh);
-    // }
+    if (DEBUG) {
+      for (let m in crowd.markers){
+        let pos = crowd.markers[m];
+        let markerMesh = new THREE.Mesh(markerGeo, markerMat);
+        markerMesh.position.set(pos.x, pos.y, pos.z);
+        scene.add(markerMesh);
+      }
+    }
 
-    let startPositions = [];
-    let endPositions = [];
-    const NUM_AGENTS = 30;
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let x0 = (i / NUM_AGENTS) * (crowd.grid_size - 4) + 2;
-      let z0 = 0;
-      let x1 = x0;
-      let z1 = crowd.grid_size;
-      startPositions.push(new THREE.Vector3(x0, 0, z0));
-      endPositions.push(new THREE.Vector3(x1, 0, z1));
-    }
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let x1 = (i / NUM_AGENTS) * (crowd.grid_size - 4) + 2;
-      let z1 = 0;
-      let x0 = x1;
-      let z0 = crowd.grid_size;
-      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
-      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
-    }
-    crowd.SetupAgents(startPositions, endPositions);
+    gui.add(controls, 'config', {CONF1: 1, CONF2: 2}).onChange((val) => {
+      SetupCrowd();
+    });
+
 
     clock = new THREE.Clock();
     clock.start();
 }
 
-function lerp(a, b, t) {
-    return (1 - t) * a + t * b;
+function SetupCrowd() {
+  ClearScene();
+  crowd = new BioCrowd(GRID_SIZE, NUM_MARKERS);
+  let startPositions = [];
+  let endPositions = [];
+
+  if (controls.config == 1) {
+    const NUM_AGENTS = 30;
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let x0 = (i / NUM_AGENTS) * (GRID_SIZE - 4) + 2;
+      let z0 = 0;
+      let x1 = x0;
+      let z1 = GRID_SIZE;
+      startPositions.push(new THREE.Vector3(x0, 0, z0));
+      endPositions.push(new THREE.Vector3(x1, 0, z1));
+    }
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let x1 = (i / NUM_AGENTS) * (GRID_SIZE - 4) + 2;
+      let z1 = 0;
+      let x0 = x1;
+      let z0 = GRID_SIZE;
+      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
+      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
+    }
+  } else if (controls.config == 2) {
+    const NUM_AGENTS = 10;
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let x0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
+      let z0 = GRID_SIZE / 4;
+      let x1 = (i / NUM_AGENTS) * GRID_SIZE;
+      let z1 = GRID_SIZE - 2;
+      startPositions.push(new THREE.Vector3(x0, 0, z0));
+      endPositions.push(new THREE.Vector3(x1, 0, z1));
+    }
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let z0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
+      let x0 = GRID_SIZE / 4;
+      let z1 = (i / NUM_AGENTS) * GRID_SIZE;
+      let x1 = GRID_SIZE - 2;
+      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
+      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
+    }
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let x0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
+      let z0 = 3 * GRID_SIZE / 4;
+      let x1 = (i / NUM_AGENTS) * GRID_SIZE;
+      let z1 = 2;
+      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
+      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
+    }
+    for (let i = 0; i < NUM_AGENTS; i++) {
+      let z0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
+      let x0 = 3 * GRID_SIZE / 4;
+      let z1 = (i / NUM_AGENTS) * GRID_SIZE;
+      let x1 = 2;
+      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
+      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
+    }
+  }
+
+  crowd.SetupAgents(startPositions, endPositions);
+}
+
+function ClearScene() {
+  if (!crowd) return;
+  for (let i = 0; i < crowd.agents.length; i++) {
+    scene.remove(scene.getObjectByName("agent" + i,true));
+  }
 }
 
 // called on frame updates
