@@ -1,8 +1,18 @@
 const THREE = require('three');
-// const GRID_SIZE = 30;
-// let NUM_MARKERS = 200; // Default
 
-let container = [];
+function copyContainer(container) {
+  // console.log(container)
+  let size = container.length;
+  let copy = new Array(size);
+  copy.fill(new Array(size), 0, size);
+  for (let i = 0; i < size; i++) {
+    copy[i] = container[i].slice()
+    for (let j = 0; j < size; j++) {
+        copy[i][j] = container[i][j].slice()
+    }
+  }
+  return copy;
+}
 
 // BioCrowd class
 export class BioCrowd {
@@ -11,14 +21,15 @@ export class BioCrowd {
     this.num_markers = numMarkers;
     this.markers = [];
     this.agents = [];
+    this.container = [];
     this.ScatterMarkers();
   }
 
   // Randomly scatters markers
   ScatterMarkers() {
     // Initialize marker container
-    container = new Array(this.grid_size);
-    container.fill(new Array(this.grid_size), 0, this.grid_size);
+    this.container = new Array(this.grid_size);
+    this.container.fill(new Array(this.grid_size), 0, this.grid_size);
 
     // Scatter markers
     for (let i = 0; i < this.num_markers; i++) {
@@ -26,11 +37,11 @@ export class BioCrowd {
       let z = Math.random() * this.grid_size;
       let marker = new THREE.Vector3(x, 0, z);
       this.markers.push(marker);
-      let slot = container[Math.floor(x)][Math.floor(z)];
+      let slot = this.container[Math.floor(x)][Math.floor(z)];
       if (slot) {
         slot.push(marker);
       } else {
-        container[Math.floor(x)][Math.floor(z)] = [marker];
+        this.container[Math.floor(x)][Math.floor(z)] = [marker];
       }
     }
   }
@@ -45,9 +56,19 @@ export class BioCrowd {
 
   // Move agents 1 step if they haven't yet reached their goal
   MoveAgents() {
+
+    let containerCopy = copyContainer(this.container);
+
     for (let i = 0; i < this.agents.length; i++) {
       let agent = this.agents[i];
-      if (!agent.done) agent.step();
+      if (!agent.done) agent.step(containerCopy);
+
+      // Clamp agents to grid space
+      let p = agent.pos;
+      if (p.x < 0) p.x = 0;
+      if (p.z < 0) p.z = 0;
+      if (p.x >= this.grid_size) p.x = this.grid_size - 1;
+      if (p.z >= this.grid_size) p.z = this.grid_size - 1;
     }
   }
 }
@@ -59,11 +80,28 @@ export class Agent {
     // this.velocity = 0;
     this.goal = goal;
     // this.orientation = 1;
-    // this.size = 1;
+    this.size = 2.0; // Radius of bubble (integer pls)
     this.markers = [];
     this.weights = [];
-    this.max_speed = 3;
+    this.max_speed = 0.06;
     this.done = false;
+  }
+
+  retrieveMarkers(container) {
+
+    const x = Math.floor(this.pos.x);
+    const z = Math.floor(this.pos.z);
+    this.markers = [];
+    for (let i = -this.size; i <= this.size; i++) {
+      for (let j = -this.size; j <= this.size; j++) {
+        if (x + i >= 0 && z + j >= 0 &&
+            x + i < container.length &&
+            z + j < container.length ) {
+          this.markers = this.markers.concat(container[x + i][z + j]);
+          container[x + i][z + j] = [];
+        }
+      }
+    }
   }
 
   computeMarkerWeights() {
@@ -74,8 +112,6 @@ export class Agent {
       let v2 = this.markers[i].clone();
       v1.sub(this.pos);
       v2.sub(this.pos);
-      v1.normalize();
-      v2.normalize();
       let weight = v1.dot(v2) + 1;
       this.weights.push(weight);
       total += weight;
@@ -83,9 +119,9 @@ export class Agent {
     this.weights.forEach((m) => { m /= total });
   }
 
-  step() {
+  step(container) {
     // Retrieves markers and computes their weights
-    this.markers = container[Math.floor(this.pos.x)][Math.floor(this.pos.z)].slice();
+    this.retrieveMarkers(container);
     this.computeMarkerWeights();
 
     // Computes motion vector
@@ -103,7 +139,7 @@ export class Agent {
     this.pos.add(disp);
 
     // Checks if I have reached my goal
-    if (this.pos.distanceTo(this.goal) < 0.01) {
+    if (this.pos.distanceTo(this.goal) < 2) {
       this.done = true;
     }
   }

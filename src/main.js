@@ -4,7 +4,8 @@ import { BioCrowd, Agent } from './biocrowd'
 
 let scene;
 let crowd;
-const agentGeo = new THREE.BoxGeometry( 0.3, 1, 0.3 );
+let clock;
+const agentGeo = new THREE.BoxGeometry( 1, 1, 1 );
 const agentMat = new THREE.MeshBasicMaterial( { color: 0x2222dd } );
 
 // called after the scene loads
@@ -47,7 +48,7 @@ function onLoad(framework) {
 
 
     // Initialize bio crowd
-    crowd = new BioCrowd(20, 4000);
+    crowd = new BioCrowd(50, 3000);
 
     for (let m in crowd.markers){
       let pos = crowd.markers[m];
@@ -60,35 +61,47 @@ function onLoad(framework) {
     let endPositions = [];
     const NUM_AGENTS = 30;
     for (let i = 0; i < NUM_AGENTS; i++) {
-      let x0 = (i / NUM_AGENTS) * crowd.grid_size;//Math.random() * crowd.grid_size;
-      let z0 = 0 //Math.random() * crowd.grid_size;
-      let x1 = x0// Math.random() * crowd.grid_size;
-      let z1 = crowd.grid_size//Math.random() * crowd.grid_size;
+      let x0 = (i / NUM_AGENTS) * crowd.grid_size;
+      let z0 = 0;
+      let x1 = (1 - i / NUM_AGENTS) * crowd.grid_size;
+      let z1 = crowd.grid_size;
       startPositions.push(new THREE.Vector3(x0, 0, z0));
       endPositions.push(new THREE.Vector3(x1, 0, z1));
     }
     crowd.SetupAgents(startPositions, endPositions);
+
+    clock = new THREE.Clock();
+    clock.start();
 }
 
 function lerp(a, b, t) {
     return (1 - t) * a + t * b;
-}k
+}
 
 // called on frame updates
 function onUpdate(framework) {
-  if (crowd) {
+  let go = true;
+  // if (clock) go = (Math.floor(clock.getElapsedTime() * 100) % 2 == 0);
+
+  if (crowd && go) {
     crowd.MoveAgents();
     const agents = crowd.agents;
 
     for (let i = 0; i < agents.length; i++) {
-      let pos = agents[i].pos;
-      let agentMesh = new THREE.Mesh(agentGeo, agentMat);
-      agentMesh.position.set(pos.x, pos.y, pos.z);
-      let name = "agent" + i
-      agentMesh.name = name;
-      scene.remove(scene.getObjectByName(name,true));
+      if (!agents[i].done) {
+        let pos = agents[i].pos;
+        let name = "agent" + i;
+        let agentMesh = scene.getObjectByName(name,true);
 
-      scene.add(agentMesh);
+        if (agentMesh) {
+          agentMesh.position.set(pos.x,pos.y,pos.z)
+        } else {
+          let agentMesh = new THREE.Mesh(agentGeo, agentMat);
+          agentMesh.position.set(pos.x, pos.y, pos.z);
+          agentMesh.name = name;
+          scene.add(agentMesh);
+        }
+      }
     }
   }
 }
