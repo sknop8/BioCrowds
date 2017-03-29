@@ -1,7 +1,6 @@
 const THREE = require('three');
 
 function copyContainer(container) {
-  // console.log(container)
   let size = container.length;
   let copy = new Array(size);
   copy.fill(new Array(size), 0, size);
@@ -28,8 +27,16 @@ export class BioCrowd {
   // Randomly scatters markers
   ScatterMarkers() {
     // Initialize marker container
-    this.container = new Array(this.grid_size);
-    this.container.fill(new Array(this.grid_size), 0, this.grid_size);
+    this.container = [];
+    this.container.length = 0
+
+    for (let i = 0; i < this.grid_size; i++) {
+      this.container.push([]);
+      for (let j = 0; j < this.grid_size; j++) {
+        this.container[i].push([]);
+        this.container[i][j] = [];
+      }
+    }
 
     // Scatter markers
     for (let i = 0; i < this.num_markers; i++) {
@@ -38,11 +45,7 @@ export class BioCrowd {
       let marker = new THREE.Vector3(x, 0, z);
       this.markers.push(marker);
       let slot = this.container[Math.floor(x)][Math.floor(z)];
-      if (slot) {
-        slot.push(marker);
-      } else {
-        this.container[Math.floor(x)][Math.floor(z)] = [marker];
-      }
+      slot.push(marker);
     }
   }
 
@@ -58,19 +61,28 @@ export class BioCrowd {
   MoveAgents() {
     let containerCopy = copyContainer(this.container);
 
-    for (let k = 0; k < this.agents.length; k++) {
-      let a = this.agents[k]
-      let x = a.pos.x;
-      let z = a.pos.z;
-      let cx = Math.floor(x);
-      let cz = Math.floor(z);
-      let len = containerCopy.length;
-      containerCopy[cx][cz] = [];
+    // for (let k = 0; k < this.agents.length; k++) {
+    //   let a = this.agents[k]
+    //   let x = a.pos.x;
+    //   let z = a.pos.z;
+    //   let cx = Math.floor(x);
+    //   let cz = Math.floor(z);
+    //   let len = containerCopy.length;
+    //
+    // }
+
+    for (let i = 0; i < this.agents.length; i++) {
+      let agent = this.agents[i];
+      if (!agent.done) {
+        containerCopy = agent.initMarkers(containerCopy);
+      }
     }
 
     for (let i = 0; i < this.agents.length; i++) {
       let agent = this.agents[i];
-      if (!agent.done) agent.step(containerCopy);
+      if (!agent.done) {
+        containerCopy = agent.step(containerCopy);
+      }
 
       // Clamp agents to grid space
       let p = agent.pos;
@@ -89,41 +101,42 @@ export class Agent {
     this.goal = goal;
     // this.orientation = 1;
     this.size = 2; // Pixel radius (which containers to look in)
-    // this.radius = 1; // exact radius
     this.markers = [];
     this.weights = [];
     this.max_speed = 0.05;
     this.done = false;
   }
 
+  initMarkers(container) {
+    this.markers = [];
+    const x = Math.floor(this.pos.x);
+    const z = Math.floor(this.pos.z);
+    let slot = container[x][z];
+    if (slot) {
+      slot.forEach((m) => {
+        this.markers.push(m)
+      })
+    }
+    container[x][z] = [];
+    return container;
+  }
+
   retrieveMarkers(container) {
     const x = this.pos.x;
     const z = this.pos.z;
-    this.markers = [];
-    let step = this.size / 4
-    for (let i = -this.size; i <= this.size; i++) {
-      for (let j = -this.size; j <= this.size; j++) {
+    const pix = Math.ceil(this.size);
+    for (let i = -pix; i <= pix; i++) {
+      for (let j = -pix; j <= pix; j++) {
         let cx = Math.floor(x + i);
         let cz = Math.floor(z + j);
-        if (cx >= 0 && cz >= 0 &&
-            cx < container.length &&
-            cz < container.length ) {
-          let markers = container[cx][cz];
-          container[cx][cz] = []
-          markers.forEach((m) => {
-            if (m.distanceTo(this.pos) < this.size) {
-              // console.log(m.distanceTo(this.pos))
-              this.markers.push(m);
-            } else {
-              container[cx][cz].push(m);
-            }
-          });
-          // console.log(this.markers.length)
-          // this.markers.concat(container[cx][cz]);
-          // container[cx][cz] = leftover;
+        let len = container.length;
+        if (cx >= 0 && cz >= 0 && cx < len && cz < len ) {
+          this.markers = this.markers.concat(container[cx][cz]);
+          container[cx][cz] = [];
         }
       }
     }
+    return container;
   }
 
   computeMarkerWeights() {
@@ -143,7 +156,7 @@ export class Agent {
 
   step(container) {
     // Retrieves markers and computes their weights
-    this.retrieveMarkers(container);
+    container = this.retrieveMarkers(container);
     this.computeMarkerWeights();
 
     // Computes motion vector
@@ -161,8 +174,10 @@ export class Agent {
     this.pos.add(disp);
 
     // Checks if I have reached my goal
-    if (this.pos.distanceTo(this.goal) < 0.2) {
+    if (this.pos.distanceTo(this.goal) < 0.5) {
       this.done = true;
     }
+
+    return container;
   }
 }

@@ -1,19 +1,20 @@
 const THREE = require('three'); // older modules are imported like this. You shouldn't have to worry about this much
 import Framework from './framework'
 import { BioCrowd, Agent } from './biocrowd'
+import { getConfig } from './agentconfig'
 
 let scene;
 let crowd;
 let clock;
 const GRID_SIZE = 30;
-const NUM_MARKERS = 3000;
+const NUM_MARKERS = 5000;
 let DEBUG = false;
 let controls = {
   debug: false,
   config: 1,
   pause: false
 }
-const agentGeo = new THREE.CylinderGeometry( 0.3, 0.3, 1 );
+const agentGeo = new THREE.CylinderGeometry( 0.2, 0.2, 1 );
 const agentMat = new THREE.MeshBasicMaterial( { color: 0x5599ff } );
 
 // called after the scene loads
@@ -39,7 +40,7 @@ function onLoad(framework) {
 
 
     // set camera position
-    camera.position.set(-5, 25, 30);
+    camera.position.set(-5, 20, 40);
     camera.lookAt(new THREE.Vector3(GRID_SIZE / 2, -5, GRID_SIZE / 2));
 
     scene.add(directionalLight);
@@ -108,8 +109,9 @@ function ShowMarkers() {
     for (let j = 0; j < GRID_SIZE; j++) {
       if((i + j) % 2 == 0) {
         const tileMesh = new THREE.Mesh(tileGeo, tileMat);
-        tileMesh.rotation.x = Math.PI / 2
-        tileMesh.position.set(i + 0.5, -0.45, j + 0.5)
+        tileMesh.rotation.x = Math.PI / 2;
+        tileMesh.position.set(i + 0.5, -0.45, j + 0.5);
+        tileMesh.name = "tile-" + i + "-" + j;
         scene.add(tileMesh);
       }
     }
@@ -121,6 +123,14 @@ function HideMarkers() {
   for (let m in crowd.markers){
     scene.remove(scene.getObjectByName("marker" + m, true));
   }
+  for (let i = 0; i < GRID_SIZE; i++) {
+    for (let j = 0; j < GRID_SIZE; j++) {
+      if((i + j) % 2 == 0) {
+        scene.remove(scene.getObjectByName("tile-" + i + "-" + j, true))
+      }
+    }
+  }
+
 }
 
 function ClearScene() {
@@ -134,64 +144,10 @@ function ClearScene() {
 function SetupCrowd() {
   ClearScene();
   crowd = new BioCrowd(GRID_SIZE, NUM_MARKERS);
-  let startPositions = [];
-  let endPositions = [];
 
-  if (controls.config == 1) {
-    const NUM_AGENTS = 30;
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let x0 = (i / NUM_AGENTS) * (GRID_SIZE - 4) + 2;
-      let z0 = 0;
-      let x1 = x0;
-      let z1 = GRID_SIZE;
-      startPositions.push(new THREE.Vector3(x0, 0, z0));
-      endPositions.push(new THREE.Vector3(x1, 0, z1));
-    }
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let x1 = (i / NUM_AGENTS) * (GRID_SIZE - 4) + 2;
-      let z1 = 0;
-      let x0 = x1;
-      let z0 = GRID_SIZE;
-      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
-      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
-    }
-  } else if (controls.config == 2) {
-    const NUM_AGENTS = 10;
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let x0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
-      let z0 = GRID_SIZE / 4;
-      let x1 = (i / NUM_AGENTS) * GRID_SIZE;
-      let z1 = GRID_SIZE - 2;
-      startPositions.push(new THREE.Vector3(x0, 0, z0));
-      endPositions.push(new THREE.Vector3(x1, 0, z1));
-    }
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let z0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
-      let x0 = GRID_SIZE / 4;
-      let z1 = (i / NUM_AGENTS) * GRID_SIZE;
-      let x1 = GRID_SIZE - 2;
-      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
-      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
-    }
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let x0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
-      let z0 = 3 * GRID_SIZE / 4;
-      let x1 = (i / NUM_AGENTS) * GRID_SIZE;
-      let z1 = 2;
-      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
-      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
-    }
-    for (let i = 0; i < NUM_AGENTS; i++) {
-      let z0 = (i / NUM_AGENTS) * (GRID_SIZE / 2) + GRID_SIZE / 4;
-      let x0 = 3 * GRID_SIZE / 4;
-      let z1 = (i / NUM_AGENTS) * GRID_SIZE;
-      let x1 = 2;
-      startPositions.push(new THREE.Vector3(x0, 0.5, z0));
-      endPositions.push(new THREE.Vector3(x1, 0.5, z1));
-    }
-  }
+  let conf = getConfig(controls.config, GRID_SIZE);
 
-  crowd.SetupAgents(startPositions, endPositions);
+  crowd.SetupAgents(conf.startPositions, conf.endPositions);
 }
 
 
@@ -206,9 +162,18 @@ function onUpdate(framework) {
         let pos = agents[i].pos;
         let name = "agent" + i;
         let agentMesh = scene.getObjectByName(name,true);
+        const markerGeo = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
 
         if (agentMesh) {
-          agentMesh.position.set(pos.x,0,pos.z)
+          agentMesh.position.set(pos.x,0,pos.z);
+
+          // for(let j in agents[i].markers) {
+          //     let m = agents[i].markers[j]
+          //     let markerMesh = new THREE.Mesh(markerGeo, agentMesh.material);
+          //     markerMesh.position.set(m.x, -0.5, m.z);
+          //     scene.add(markerMesh)
+          // }
+
         } else {
           const agentMat = new THREE.MeshBasicMaterial( { color: new THREE.Color(Math.random(), Math.random(), Math.random())} );
           let agentMesh = new THREE.Mesh(agentGeo, agentMat);
