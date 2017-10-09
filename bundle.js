@@ -52,6 +52,8 @@
 	
 	var _biocrowd = __webpack_require__(9);
 	
+	var _agentconfig = __webpack_require__(10);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	var THREE = __webpack_require__(6); // older modules are imported like this. You shouldn't have to worry about this much
@@ -61,8 +63,14 @@
 	var crowd = void 0;
 	var clock = void 0;
 	var GRID_SIZE = 30;
-	var NUM_MARKERS = 2000;
-	var agentGeo = new THREE.BoxGeometry(0.4, 1, 0.4);
+	var NUM_MARKERS = 5000;
+	var DEBUG = false;
+	var controls = {
+	  debug: false,
+	  config: 1,
+	  pause: false
+	};
+	var agentGeo = new THREE.CylinderGeometry(0.2, 0.2, 1);
 	var agentMat = new THREE.MeshBasicMaterial({ color: 0x5599ff });
 	
 	// called after the scene loads
@@ -82,15 +90,12 @@
 	  directionalLight.position.set(1, 3, 2);
 	  directionalLight.position.multiplyScalar(10);
 	
-	  // scene.background = skymap;
-	  renderer.setClearColor(0xffffff, 1);
+	  renderer.setClearColor(0xeeeeee, 1);
 	
 	  var objLoader = new THREE.OBJLoader();
-	  var markerGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-	  var markerMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 	
 	  // set camera position
-	  camera.position.set(-5, 25, 30);
+	  camera.position.set(-5, 20, 40);
 	  camera.lookAt(new THREE.Vector3(GRID_SIZE / 2, -5, GRID_SIZE / 2));
 	
 	  scene.add(directionalLight);
@@ -101,51 +106,105 @@
 	    camera.updateProjectionMatrix();
 	  });
 	
+	  var planeGeo = new THREE.PlaneBufferGeometry(GRID_SIZE, GRID_SIZE);
+	  var planeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+	  var planeMesh = new THREE.Mesh(planeGeo, planeMat);
+	  planeMesh.rotation.x = Math.PI / 2;
+	  planeMesh.position.setX(GRID_SIZE / 2);
+	  planeMesh.position.setZ(GRID_SIZE / 2);
+	  planeMesh.position.setY(-0.5);
+	  scene.add(planeMesh);
+	
 	  // Initialize bio crowd
-	  crowd = new _biocrowd.BioCrowd(GRID_SIZE, NUM_MARKERS);
+	  SetupCrowd();
 	
-	  for (var m in crowd.markers) {
-	    var pos = crowd.markers[m];
-	    var markerMesh = new THREE.Mesh(markerGeo, markerMat);
-	    markerMesh.position.set(pos.x, pos.y, pos.z);
-	    // scene.add(markerMesh);
+	  if (controls.debug) {
+	    ShowMarkers();
 	  }
 	
-	  var startPositions = [];
-	  var endPositions = [];
-	  var NUM_AGENTS = 30;
-	  for (var i = 0; i < NUM_AGENTS; i++) {
-	    var x0 = i / NUM_AGENTS * (crowd.grid_size - 5);
-	    var z0 = 0;
-	    var x1 = x0;
-	    var z1 = crowd.grid_size - 5;
-	    startPositions.push(new THREE.Vector3(x0, 0, z0));
-	    endPositions.push(new THREE.Vector3(x1, 0, z1));
-	  }
-	  for (var _i = 0; _i < NUM_AGENTS; _i++) {
-	    var _x = _i / NUM_AGENTS * (crowd.grid_size - 5);
-	    var _z = 0;
-	    var _x2 = _x;
-	    var _z2 = crowd.grid_size - 5;
-	    startPositions.push(new THREE.Vector3(_x2, 0, _z2));
-	    endPositions.push(new THREE.Vector3(_x, 0, _z));
-	  }
-	  crowd.SetupAgents(startPositions, endPositions);
+	  gui.add(controls, 'config', { CONF1: 1, CONF2: 2 }).onChange(function () {
+	    SetupCrowd();
+	  });
+	
+	  gui.add(controls, 'debug').onChange(function () {
+	    controls.debug ? ShowMarkers() : HideMarkers();
+	  });
+	
+	  gui.add(controls, 'pause');
 	
 	  clock = new THREE.Clock();
 	  clock.start();
 	}
 	
-	function lerp(a, b, t) {
-	  return (1 - t) * a + t * b;
+	function ShowMarkers() {
+	  if (!crowd) return;
+	  var markerGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+	  var markerMat1 = new THREE.MeshBasicMaterial({ color: 0x000000 });
+	  var markerMat2 = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+	
+	  for (var m in crowd.markers) {
+	    var pos = crowd.markers[m];
+	    var markerMesh = void 0;
+	
+	    if ((Math.floor(pos.x) + Math.floor(pos.z)) % 2 == 0) {
+	      markerMesh = new THREE.Mesh(markerGeo, markerMat2);
+	    } else {
+	      markerMesh = new THREE.Mesh(markerGeo, markerMat1);
+	    }
+	    markerMesh.position.set(pos.x, -0.4, pos.z);
+	    markerMesh.name = "marker" + m;
+	    scene.add(markerMesh);
+	  }
+	
+	  var tileGeo = new THREE.PlaneBufferGeometry(1, 1);
+	  var tileMat = new THREE.MeshBasicMaterial({ color: 0xdddddd, side: THREE.DoubleSide });
+	
+	  for (var i = 0; i < GRID_SIZE; i++) {
+	    for (var j = 0; j < GRID_SIZE; j++) {
+	      if ((i + j) % 2 == 0) {
+	        var tileMesh = new THREE.Mesh(tileGeo, tileMat);
+	        tileMesh.rotation.x = Math.PI / 2;
+	        tileMesh.position.set(i + 0.5, -0.45, j + 0.5);
+	        tileMesh.name = "tile-" + i + "-" + j;
+	        scene.add(tileMesh);
+	      }
+	    }
+	  }
+	}
+	
+	function HideMarkers() {
+	  if (!crowd) return;
+	  for (var m in crowd.markers) {
+	    scene.remove(scene.getObjectByName("marker" + m, true));
+	  }
+	  for (var i = 0; i < GRID_SIZE; i++) {
+	    for (var j = 0; j < GRID_SIZE; j++) {
+	      if ((i + j) % 2 == 0) {
+	        scene.remove(scene.getObjectByName("tile-" + i + "-" + j, true));
+	      }
+	    }
+	  }
+	}
+	
+	function ClearScene() {
+	  if (!crowd) return;
+	  for (var i = 0; i < crowd.agents.length; i++) {
+	    scene.remove(scene.getObjectByName("agent" + i, true));
+	  }
+	}
+	
+	function SetupCrowd() {
+	  ClearScene();
+	  crowd = new _biocrowd.BioCrowd(GRID_SIZE, NUM_MARKERS);
+	
+	  var conf = (0, _agentconfig.getConfig)(controls.config, GRID_SIZE);
+	
+	  crowd.SetupAgents(conf.startPositions, conf.endPositions);
 	}
 	
 	// called on frame updates
 	function onUpdate(framework) {
-	  var go = true;
-	  // if (clock) go = (Math.floor(clock.getElapsedTime() * 100) % 2 == 0);
-	
-	  if (crowd && go) {
+	  if (crowd && !controls.pause) {
 	    crowd.MoveAgents();
 	    var agents = crowd.agents;
 	
@@ -154,13 +213,21 @@
 	        var pos = agents[i].pos;
 	        var name = "agent" + i;
 	        var agentMesh = scene.getObjectByName(name, true);
+	        var markerGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
 	
 	        if (agentMesh) {
-	          agentMesh.position.set(pos.x, pos.y, pos.z);
+	          agentMesh.position.set(pos.x, 0, pos.z);
+	
+	          // for(let j in agents[i].markers) {
+	          //     let m = agents[i].markers[j]
+	          //     let markerMesh = new THREE.Mesh(markerGeo, agentMesh.material);
+	          //     markerMesh.position.set(m.x, -0.5, m.z);
+	          //     scene.add(markerMesh)
+	          // }
 	        } else {
 	          var _agentMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(Math.random(), Math.random(), Math.random()) });
 	          var _agentMesh = new THREE.Mesh(agentGeo, _agentMat);
-	          _agentMesh.position.set(pos.x, pos.y, pos.z);
+	          _agentMesh.position.set(pos.x, 0, pos.z);
 	          _agentMesh.name = name;
 	          scene.add(_agentMesh);
 	        }
@@ -48372,7 +48439,6 @@
 	var THREE = __webpack_require__(6);
 	
 	function copyContainer(container) {
-	  // console.log(container)
 	  var size = container.length;
 	  var copy = new Array(size);
 	  copy.fill(new Array(size), 0, size);
@@ -48406,21 +48472,25 @@
 	    key: 'ScatterMarkers',
 	    value: function ScatterMarkers() {
 	      // Initialize marker container
-	      this.container = new Array(this.grid_size);
-	      this.container.fill(new Array(this.grid_size), 0, this.grid_size);
+	      this.container = [];
+	      this.container.length = 0;
+	
+	      for (var i = 0; i < this.grid_size; i++) {
+	        this.container.push([]);
+	        for (var j = 0; j < this.grid_size; j++) {
+	          this.container[i].push([]);
+	          this.container[i][j] = [];
+	        }
+	      }
 	
 	      // Scatter markers
-	      for (var i = 0; i < this.num_markers; i++) {
+	      for (var _i = 0; _i < this.num_markers; _i++) {
 	        var x = Math.random() * this.grid_size;
 	        var z = Math.random() * this.grid_size;
 	        var marker = new THREE.Vector3(x, 0, z);
 	        this.markers.push(marker);
 	        var slot = this.container[Math.floor(x)][Math.floor(z)];
-	        if (slot) {
-	          slot.push(marker);
-	        } else {
-	          this.container[Math.floor(x)][Math.floor(z)] = [marker];
-	        }
+	        slot.push(marker);
 	      }
 	    }
 	
@@ -48442,27 +48512,31 @@
 	    value: function MoveAgents() {
 	      var containerCopy = copyContainer(this.container);
 	
-	      for (var k = 0; k < this.agents.length; k++) {
-	        var a = this.agents[k];
-	        var x = a.pos.x;
-	        var z = a.pos.z;
-	        for (var i = -a.size / 3; i <= a.size / 3; i++) {
-	          for (var j = -a.size / 3; j <= a.size / 3; j++) {
-	            var cx = Math.floor(x + i);
-	            var cz = Math.floor(z + j);
-	            if (cx >= 0 && cz >= 0 && cx < containerCopy.length && cz < containerCopy.length) {
-	              containerCopy[cx][cz] = [];
-	            }
-	          }
+	      // for (let k = 0; k < this.agents.length; k++) {
+	      //   let a = this.agents[k]
+	      //   let x = a.pos.x;
+	      //   let z = a.pos.z;
+	      //   let cx = Math.floor(x);
+	      //   let cz = Math.floor(z);
+	      //   let len = containerCopy.length;
+	      //
+	      // }
+	
+	      for (var i = 0; i < this.agents.length; i++) {
+	        var agent = this.agents[i];
+	        if (!agent.done) {
+	          containerCopy = agent.initMarkers(containerCopy);
 	        }
 	      }
 	
-	      for (var _i = 0; _i < this.agents.length; _i++) {
-	        var agent = this.agents[_i];
-	        if (!agent.done) agent.step(containerCopy);
+	      for (var _i2 = 0; _i2 < this.agents.length; _i2++) {
+	        var _agent = this.agents[_i2];
+	        if (!_agent.done) {
+	          containerCopy = _agent.step(containerCopy);
+	        }
 	
 	        // Clamp agents to grid space
-	        var p = agent.pos;
+	        var p = _agent.pos;
 	        if (p.x < 0) p.x = 0;
 	        if (p.z < 0) p.z = 0;
 	        if (p.x >= this.grid_size) p.x = this.grid_size - 1;
@@ -48484,7 +48558,7 @@
 	    this.pos = start;
 	    this.goal = goal;
 	    // this.orientation = 1;
-	    this.size = 1.5; // Radius of bubble (integer)
+	    this.size = 2; // Pixel radius (which containers to look in)
 	    this.markers = [];
 	    this.weights = [];
 	    this.max_speed = 0.05;
@@ -48492,21 +48566,40 @@
 	  }
 	
 	  _createClass(Agent, [{
+	    key: 'initMarkers',
+	    value: function initMarkers(container) {
+	      var _this = this;
+	
+	      this.markers = [];
+	      var x = Math.floor(this.pos.x);
+	      var z = Math.floor(this.pos.z);
+	      var slot = container[x][z];
+	      if (slot) {
+	        slot.forEach(function (m) {
+	          _this.markers.push(m);
+	        });
+	      }
+	      container[x][z] = [];
+	      return container;
+	    }
+	  }, {
 	    key: 'retrieveMarkers',
 	    value: function retrieveMarkers(container) {
 	      var x = this.pos.x;
 	      var z = this.pos.z;
-	      this.markers = [];
-	      for (var i = -this.size; i <= this.size; i++) {
-	        for (var j = -this.size; j <= this.size; j++) {
+	      var pix = Math.ceil(this.size);
+	      for (var i = -pix; i <= pix; i++) {
+	        for (var j = -pix; j <= pix; j++) {
 	          var cx = Math.floor(x + i);
 	          var cz = Math.floor(z + j);
-	          if (cx >= 0 && cz >= 0 && cx < container.length && cz < container.length) {
+	          var len = container.length;
+	          if (cx >= 0 && cz >= 0 && cx < len && cz < len) {
 	            this.markers = this.markers.concat(container[cx][cz]);
 	            container[cx][cz] = [];
 	          }
 	        }
 	      }
+	      return container;
 	    }
 	  }, {
 	    key: 'computeMarkerWeights',
@@ -48530,7 +48623,7 @@
 	    key: 'step',
 	    value: function step(container) {
 	      // Retrieves markers and computes their weights
-	      this.retrieveMarkers(container);
+	      container = this.retrieveMarkers(container);
 	      this.computeMarkerWeights();
 	
 	      // Computes motion vector
@@ -48548,20 +48641,130 @@
 	      this.pos.add(disp);
 	
 	      // Checks if I have reached my goal
-	      if (this.pos.distanceTo(this.goal) < 2) {
+	      if (this.pos.distanceTo(this.goal) < 0.5) {
 	        this.done = true;
 	      }
+	
+	      return container;
 	    }
 	  }]);
-	
+
 	  return Agent;
 	}();
+
+/***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
 	
-	//
-	// export default {
-	//   BioCrowd: BioCrowd,
-	//   Agent: Agent
-	// }
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+	exports.getConfig = getConfig;
+	var THREE = __webpack_require__(6);
+	
+	function getConfig(num, gridSize) {
+	  var startPositions = [];
+	  var endPositions = [];
+	  switch (Number(num)) {
+	    case 1:
+	      {
+	        var NUM_AGENTS = 30;
+	        for (var i = 0; i < NUM_AGENTS; i++) {
+	          var x0 = i / NUM_AGENTS * (gridSize - 4) + 2;
+	          var z0 = 0;
+	          var x1 = x0;
+	          var z1 = gridSize;
+	          startPositions.push(new THREE.Vector3(x0, 0, z0));
+	          endPositions.push(new THREE.Vector3(x1, 0, z1));
+	        }
+	        for (var _i = 0; _i < NUM_AGENTS; _i++) {
+	          var _x = _i / NUM_AGENTS * (gridSize - 4) + 2;
+	          var _z = 0;
+	          var _x2 = _x;
+	          var _z2 = gridSize;
+	          startPositions.push(new THREE.Vector3(_x2, 0.5, _z2));
+	          endPositions.push(new THREE.Vector3(_x, 0.5, _z));
+	        }
+	        break;
+	      }
+	    case 2:
+	      {
+	        var _NUM_AGENTS = 10;
+	        for (var _i2 = 1; _i2 < _NUM_AGENTS; _i2++) {
+	          var _x3 = _i2 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _z3 = gridSize / 4;
+	          var _x4 = _i2 / _NUM_AGENTS * gridSize;
+	          var _z4 = gridSize - 2;
+	          startPositions.push(new THREE.Vector3(_x3, 0, _z3));
+	          endPositions.push(new THREE.Vector3(_x4, 0, _z4));
+	        }
+	        for (var _i3 = 1; _i3 < _NUM_AGENTS; _i3++) {
+	          var _z5 = _i3 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _x5 = gridSize / 4;
+	          var _z6 = _i3 / _NUM_AGENTS * gridSize;
+	          var _x6 = gridSize - 2;
+	          startPositions.push(new THREE.Vector3(_x5, 0.5, _z5));
+	          endPositions.push(new THREE.Vector3(_x6, 0.5, _z6));
+	        }
+	        for (var _i4 = 1; _i4 < _NUM_AGENTS; _i4++) {
+	          var _x7 = _i4 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _z7 = 3 * gridSize / 4;
+	          var _x8 = _i4 / _NUM_AGENTS * gridSize;
+	          var _z8 = 2;
+	          startPositions.push(new THREE.Vector3(_x7, 0.5, _z7));
+	          endPositions.push(new THREE.Vector3(_x8, 0.5, _z8));
+	        }
+	        for (var _i5 = 1; _i5 < _NUM_AGENTS; _i5++) {
+	          var _z9 = _i5 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _x9 = 3 * gridSize / 4;
+	          var _z10 = _i5 / _NUM_AGENTS * gridSize;
+	          var _x10 = 2;
+	          startPositions.push(new THREE.Vector3(_x9, 0.5, _z9));
+	          endPositions.push(new THREE.Vector3(_x10, 0.5, _z10));
+	        }
+	        // outer -> inner
+	        for (var _i6 = 1; _i6 < _NUM_AGENTS; _i6++) {
+	          var _x11 = _i6 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _z11 = gridSize / 4;
+	          var _x12 = _i6 / _NUM_AGENTS * gridSize;
+	          var _z12 = gridSize - 2;
+	          endPositions.push(new THREE.Vector3(_x11, 0, _z11));
+	          startPositions.push(new THREE.Vector3(_x12, 0, _z12));
+	        }
+	        for (var _i7 = 1; _i7 < _NUM_AGENTS; _i7++) {
+	          var _z13 = _i7 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _x13 = gridSize / 4;
+	          var _z14 = _i7 / _NUM_AGENTS * gridSize;
+	          var _x14 = gridSize - 2;
+	          endPositions.push(new THREE.Vector3(_x13, 0.5, _z13));
+	          startPositions.push(new THREE.Vector3(_x14, 0.5, _z14));
+	        }
+	        for (var _i8 = 1; _i8 < _NUM_AGENTS; _i8++) {
+	          var _x15 = _i8 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _z15 = 3 * gridSize / 4;
+	          var _x16 = _i8 / _NUM_AGENTS * gridSize;
+	          var _z16 = 2;
+	          endPositions.push(new THREE.Vector3(_x15, 0.5, _z15));
+	          startPositions.push(new THREE.Vector3(_x16, 0.5, _z16));
+	        }
+	        for (var _i9 = 1; _i9 < _NUM_AGENTS; _i9++) {
+	          var _z17 = _i9 / _NUM_AGENTS * (gridSize / 2) + gridSize / 4;
+	          var _x17 = 3 * gridSize / 4;
+	          var _z18 = _i9 / _NUM_AGENTS * gridSize;
+	          var _x18 = 2;
+	          endPositions.push(new THREE.Vector3(_x17, 0.5, _z17));
+	          startPositions.push(new THREE.Vector3(_x18, 0.5, _z18));
+	        }
+	        break;
+	      }
+	    default:
+	      {}
+	  }
+	
+	  return { startPositions: startPositions, endPositions: endPositions };
+	}
 
 /***/ }
 /******/ ]);
